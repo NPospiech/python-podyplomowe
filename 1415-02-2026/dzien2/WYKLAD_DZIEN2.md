@@ -1447,6 +1447,141 @@ Weekend 4: REST API -> wiecej Django
 
 ---
 
+## Zadanie domowe (opcjonalne)
+
+Ponizsze zadania mozesz zrobic samodzielnie po zajeciach. Nie ma prowadzenia krok po kroku - musisz sam/sama znalezc rozwiazanie. Uzyj wiedzy z dzisiejszego dnia.
+
+Kazde zadanie wymaga tego samego wzorca co na zajeciach: **view + template + URL**. Pamietaj o `{% csrf_token %}` w formularzach POST i o wzorcu POST-Redirect-GET.
+
+**Podpowiedz:** Zajrzyj do plikow `rozwiazanie_weekend2/pizza.py`, `customer.py`, `order.py` - znajdziesz tam metody, ktore nie byly uzywane na zajeciach. Warto je przeczytac.
+
+---
+
+### Zadanie 1: Usuwanie pizzy z menu
+
+**Cel:** Na stronie `/menu/` obok kazdej pizzy powinien byc przycisk "Usun". Po kliknieciu pizza znika z menu.
+
+**Wymagania:**
+- Usuwanie musi byc operacja POST (nie GET!) - bo zmienia dane na serwerze
+- Po usunieciu przekieruj na `/menu/` z komunikatem `messages.warning()`
+- Obsluz `PizzaNotFoundError` gdyby pizza juz nie istniala
+
+**Z czego skorzystac w engine:**
+- `menu.remove_pizza(name)` - metoda Menu, ktora usuwa pizze po nazwie
+
+**Wskazowka do implementacji:** Mozesz dodac maly formularz obok kazdej pizzy w `pizza_list.html`:
+```html
+<form method="post" action="/menu/usun/" style="display:inline;">
+    {% csrf_token %}
+    <input type="hidden" name="name" value="{{ pizza.name }}">
+    <button type="submit">Usun</button>
+</form>
+```
+
+Potrzebujesz: nowy view `pizza_delete` + URL `path('usun/', ...)`.
+
+---
+
+### Zadanie 2: Sortowanie i statystyki menu
+
+**Cel:** Na stronie `/menu/` dodaj:
+- Linki do sortowania: "Po nazwie", "Po cenie (rosnaco)", "Po cenie (malejaco)"
+- Statystyki na dole strony: najtansza pizza, najdrozsza pizza, srednia cena
+
+**Wymagania:**
+- Sortowanie przez **URL query parameters**: `/menu/?sort=price_asc`
+- Statystyki widoczne pod lista pizz
+
+**Z czego skorzystac w engine:**
+- `menu.get_cheapest()` - zwraca najtansza pizze
+- `menu.get_most_expensive()` - zwraca najdrozsza pizze
+- `menu.get_average_price()` - zwraca srednia cene
+
+**Nowa koncepcja - query parameters:**
+
+Query parameters to dane po `?` w URL. W Django odczytujesz je inaczej niz parametry URL:
+```python
+# URL: /menu/?sort=price_asc
+sort_by = request.GET.get('sort', 'name')    # domyslnie sortuj po nazwie
+```
+
+`request.GET` (nie `request.POST`!) to slownik z parametrami z URL. Uzyj go w view `pizza_list` do sortowania listy przed przekazaniem do template.
+
+Linki w template:
+```html
+<a href="/menu/?sort=name">Po nazwie</a>
+<a href="/menu/?sort=price_asc">Cena (rosnaco)</a>
+<a href="/menu/?sort=price_desc">Cena (malejaco)</a>
+```
+
+---
+
+### Zadanie 3: Strona klienta z punktami lojalnosciowymi
+
+**Cel:** Po kliknieciu na imie klienta w `/klienci/` otwiera sie strona `/klienci/<int:customer_id>/` z szczegolami. Dla klientow VIP widoczne sa punkty lojalnosciowe i formularz do ich dodawania.
+
+**Wymagania:**
+- Nowy detail view: `customer_detail(request, customer_id)`
+- Template wyswietla: imie, telefon, typ (zwykly/VIP)
+- Dla VIP: dodatkowa sekcja z `loyalty_points` i formularzem POST do dodawania punktow
+- Linki w `customer_list.html` kierujace na strone klienta
+
+**Z czego skorzystac w engine:**
+- `customer_mgr.find_customer(customer_id)` - znajdz klienta po ID
+- `VIPCustomer.loyalty_points` - aktualna liczba punktow
+- `VIPCustomer.add_loyalty_points(points)` - dodaj punkty
+
+**Wskazowka:** Sprawdz czy klient jest VIP w template:
+```html
+{% if customer.discount_percent is not None %}
+    <p>Punkty lojalnosciowe: {{ customer.loyalty_points }}</p>
+    <!-- formularz dodawania punktow -->
+{% endif %}
+```
+
+Po dodaniu punktow musisz zapisac zmienionego klienta do pliku (`customer_mgr.save_to_file()`).
+
+---
+
+### Zadanie 4: Anulowanie zamowienia
+
+**Cel:** Na stronie szczegulow zamowienia (`/zamowienia/<id>/`) dodaj przycisk "Anuluj zamowienie". Po kliknieciu zamowienie znika z listy.
+
+**Wymagania:**
+- Anulowanie to operacja POST (zmienia dane!)
+- Po anulowaniu przekieruj na `/zamowienia/` z komunikatem `messages.warning()`
+- Obsluz sytuacje gdy zamowienie nie istnieje (404)
+
+**Z czego skorzystac:**
+- W tym cwiczeniu nie uzyjesz `OrderManager` z engine (bo zamowienia przechowujesz w surowym JSON)
+- Musisz samodzielnie: zaladowac `orders.json`, usunac zamowienie o danym ID, zapisac z powrotem
+
+**Wskazowka:** Uzyj list comprehension do filtrowania:
+```python
+orders_data = [o for o in orders_data if o['id'] != order_id]
+```
+
+---
+
+### Checklista po zadaniach domowych
+
+Jesli zrobiles wszystkie 4 zadania, Twoja aplikacja powinna miec te URL-e:
+
+| URL | Opis |
+|-----|------|
+| `/menu/` | Lista pizz z sortowaniem i statystykami |
+| `/menu/<str:name>/` | Szczegoly pizzy |
+| `/menu/dodaj/` | Formularz dodawania |
+| `/menu/usun/` | Usuwanie pizzy (POST) |
+| `/klienci/` | Lista klientow z linkami |
+| `/klienci/<int:customer_id>/` | Szczegoly klienta + punkty VIP |
+| `/klienci/dodaj/` | Formularz dodawania |
+| `/zamowienia/` | Lista zamowien |
+| `/zamowienia/<int:order_id>/` | Szczegoly + przycisk anulowania |
+| `/zamowienia/nowe/` | Formularz zamowienia |
+
+---
+
 ## Materialy dodatkowe
 
 ### Struktura finalna projektu
