@@ -21,7 +21,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.messages',
     # TODO: Dodaj swoje appy tutaj po uzyciu 'python manage.py startapp <nazwa>'
-    # np. 'menu_app',
+    'menu_app',
     # np. 'customers_app',
     # np. 'orders_app',
 ]

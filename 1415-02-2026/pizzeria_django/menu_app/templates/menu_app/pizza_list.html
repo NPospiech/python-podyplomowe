@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><title>Menu Pizzerii</title></head>
+<body>
+    <h1>Menu Pizzerii</h1>
+    <ul>
+    {% for pizza in pizzas %}
+        <li><a href="/menu/{{ pizza.name }}/">{{ pizza.name }}</a> - {{ pizza.price }} zl</li>
+    {% endfor %}
+    </ul>
+</body>
+</html>

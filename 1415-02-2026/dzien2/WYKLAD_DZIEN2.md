@@ -1,20 +1,153 @@
 # Dzien 2: Django - Pelna aplikacja webowa
 
-## Czesc 1: Recap + Detail Views (30 min)
+## Agenda
 
-### Recap dnia 1
-- Git: init, add, commit, branch, merge, push
-- Django: project, views, templates, URL routing
-- Otworzylimy gotowy szkielet projektu `pizzeria_django/` (settings, base.html, static)
-- Stworzylismy `menu_app` przez `startapp` i zarejestrowalismy go w INSTALLED_APPS + urls.py
-- `rozwiazanie_weekend2/` jest skopiowany do srodka `pizzeria_django/` - importy dzialaja bez dodatkowej konfiguracji
-- Importy: `from rozwiazanie_weekend2.pizza import Pizza, Menu`, `from rozwiazanie_weekend2 import DATA_DIR`
-- pizza_list dziala w przegladarce
+**Czas trwania:** 8:30 - 15:00 (6h 30min z przerwami)
 
-### SHOW: Detail view z parametrem URL (GENERIC: ksiazka)
+### Harmonogram
+
+| Czas | Temat | Aktywnosc |
+|------|-------|-----------|
+| **8:30 - 8:50** | Recap dnia 1 | Sprawdzenie srodowiska, pytania |
+| **8:50 - 10:30** | Detail views, static files, formularze | Teoria + cwiczenia |
+| **10:30 - 10:40** | **PRZERWA** | 10 minut |
+| **10:40 - 12:40** | Budowanie pelnej aplikacji | customers_app + orders_app |
+| **12:40 - 13:10** | **PRZERWA** | 30 minut |
+| **13:10 - 15:00** | Formularz zamowien, messages, integracja | Finalizacja + testy + podsumowanie |
+
+### Co zbudujemy dzisiaj?
+
+Pelna aplikacje webowa do zarzadzania pizzeria:
+- **Detail views** - strona szczegolow pizzy z parametrem URL
+- **Dziedziczenie szablonow** - wspolny wyglad z base.html + Bootstrap
+- **Formularze HTML** - dodawanie pizz, klientow, zamowien
+- **Error handling** - polaczenie wyjatkow z Weekend 2 z Django views
+- **Messages** - komunikaty uzytkownikowi (sukces/blad)
+
+### Czego sie nauczysz?
+
+- Parametry w URL-ach (`<str:name>`, `<int:id>`)
+- Dziedziczenie szablonow (`extends`, `block`)
+- HTTP GET vs POST i wzorzec POST-Redirect-GET
+- Ochrona CSRF w formularzach
+- Obsluga bledow w views (try/except + Http404)
+- Django messages framework
+
+---
+
+## Czesc 1: Recap dnia 1 (20 min)
+
+### Co zrobilismy wczoraj
+
+- **Git:** init, add, commit, branch, merge, push
+- **GitHub:** fork, clone, push na forka
+- **Django:** otworzylimy szkielet projektu `pizzeria_django/`
+- **Pierwszy app:** `startapp menu_app` + rejestracja w INSTALLED_APPS + urls.py
+- **Integracja:** skopiowalismy `rozwiazanie_weekend2/` do projektu Django
+- **pizza_list:** view ladujacy dane z JSON i wyswietlajacy je w template
+
+### Sprawdzenie srodowiska
+
+Upewnij sie ze masz dzialajacy serwer:
+
+```bash
+cd 1415-02-2026/pizzeria_django
+python3 manage.py runserver
+```
+
+Wejdz na http://127.0.0.1:8000/menu/ - powinienes zobaczyc liste pizz.
+
+Przypomnij sobie kluczowe importy:
+```python
+from rozwiazanie_weekend2 import DATA_DIR
+from rozwiazanie_weekend2.pizza import Pizza, Menu
+```
+
+---
+
+## Czesc 2: Detail views - parametry w URL (45 min)
+
+### Teoria: Czym sa parametry URL?
+
+Do tej pory nasze URL-e byly statyczne:
+- `/menu/` - zawsze ten sam widok (lista pizz)
+
+Ale co jesli chcemy wyswietlic **szczegoly konkretnej pizzy**? Na przyklad:
+- `/menu/Margherita/` - szczegoly Margherity
+- `/menu/Pepperoni/` - szczegoly Pepperoni
+
+Potrzebujemy sposobu zeby **wyciagnac czesc URL-a** (nazwe pizzy) i przekazac ja do view jako argument. Do tego sluza **parametry URL**.
+
+### Skladnia parametrow URL w Django
+
+```python
+# urls.py
+path('<str:name>/', views.pizza_detail, name='pizza_detail'),
+```
+
+`<str:name>` to **konwerter URL** - mowi Django:
+- **`str`** - typ parametru (tekst). Inne typy: `int` (liczba calkowita), `slug` (tekst-z-myslnikami)
+- **`name`** - nazwa argumentu, ktory zostanie przekazany do view
+
+**Jak to dziala w praktyce:**
+
+```
+URL: /menu/Margherita/
+
+path('<str:name>/', views.pizza_detail)
+      ^^^^^^^^^^
+      name = "Margherita"
+                   |
+                   v
+def pizza_detail(request, name):    # name = "Margherita"
+```
+
+Przyklad z liczbami:
+```
+URL: /zamowienia/42/
+
+path('<int:order_id>/', views.order_detail)
+      ^^^^^^^^^^^^^^^
+      order_id = 42 (int, nie string!)
+```
+
+### Teoria: Http404 - co robic gdy zasob nie istnieje?
+
+Co jesli ktos wejdzie na `/menu/NieIstniejacaPizza/`? Musimy zwrocic blad **404 Not Found**.
+
+W Django rzucamy specjalny wyjatek `Http404`:
+
+```python
+from django.http import Http404
+
+def pizza_detail(request, name):
+    # ... szukamy pizzy ...
+    if not found:
+        raise Http404(f"Pizza '{name}' nie znaleziona")
+```
+
+Django przechwyci ten wyjatek i wyswietli strone bledu 404. W trybie `DEBUG=True` zobaczysz ladna strone z opisem bledu.
+
+**Polaczenie z Weekend 2:** Nasz engine rzuca `PizzaNotFoundError` gdy pizza nie istnieje. Mozemy go zamienic na `Http404`:
+
+```python
+from rozwiazanie_weekend2.exceptions import PizzaNotFoundError
+
+try:
+    pizza = menu.find_pizza(name)
+except PizzaNotFoundError:
+    raise Http404(f"Pizza '{name}' nie znaleziona")
+```
+
+### Demonstracja: Detail view (GENERIC - ksiazka)
+
+Zobaczmy jak wyglada detail view na przykladzie listy ksiazek:
 
 ```python
 # views.py
+from django.http import Http404
+from django.shortcuts import render
+
 def book_detail(request, pk):
     books = {
         1: {'title': 'Python Crash Course', 'author': 'Eric Matthes'},
@@ -31,9 +164,22 @@ def book_detail(request, pk):
 path('books/<int:pk>/', views.book_detail, name='book_detail'),
 ```
 
-### DO: pizza_detail view
+```html
+<!-- templates/books/book_detail.html -->
+<h1>{{ book.title }}</h1>
+<p>Autor: {{ book.author }}</p>
+<a href="/books/">Powrot do listy</a>
+```
 
-Cel: po kliknieciu na nazwe pizzy w liscie, zobaczysz strone ze szczegolami tej pizzy.
+Zwroc uwage na caly flow:
+1. URL `/books/1/` -> Django wyciaga `pk=1` (jako int)
+2. View `book_detail(request, pk=1)` -> szuka ksiazki w slowniku
+3. Jesli znaleziona -> renderuje template z danymi
+4. Jesli nie -> `Http404`
+
+### Cwiczenie 1: pizza_detail view
+
+**Cel:** po kliknieciu na nazwe pizzy w liscie, zobaczysz strone ze szczegolami tej pizzy.
 
 **Krok 1:** Dodaj nowy view w `menu_app/views.py`:
 
@@ -51,11 +197,6 @@ def pizza_detail(request, name):
         raise Http404(f"Pizza '{name}' nie znaleziona")
     return render(request, 'menu_app/pizza_detail.html', {'pizza': pizza})
 ```
-
-Zwroc uwage:
-- `name` w argumencie funkcji - pochodzi z URL (patrz krok 3)
-- `menu.find_pizza(name)` - uzywa metody z naszego engine, ktora rzuca `PizzaNotFoundError`
-- `raise Http404(...)` - Django wyswietli strone "404 Not Found"
 
 **Krok 2:** Stworz template `menu_app/templates/menu_app/pizza_detail.html`:
 
@@ -80,7 +221,7 @@ Na razie uzywamy prostego HTML (tak jak w pizza_list z dnia 1). W nastepnym cwic
 path('<str:name>/', views.pizza_detail, name='pizza_detail'),
 ```
 
-`<str:name>` oznacza: "weź cokolwiek z URL i przekaz jako argument `name` do view".
+`<str:name>` oznacza: "wez cokolwiek z URL i przekaz jako argument `name` do view".
 Np. URL `/menu/Margherita/` -> `pizza_detail(request, name='Margherita')`.
 
 **Krok 4:** Dodaj linki w `pizza_list.html` zeby mozna bylo kliknac na pizze:
@@ -95,21 +236,81 @@ Np. URL `/menu/Margherita/` -> `pizza_detail(request, name='Margherita')`.
 
 ---
 
-## Czesc 2: Static Files + Bootstrap (25 min)
+## Czesc 3: Dziedziczenie szablonow + Bootstrap (30 min)
 
-### SHOW: base.html z Bootstrap CDN
+### Teoria: Problem duplikacji w szablonach
+
+Teraz mamy dwa szablony (`pizza_list.html` i `pizza_detail.html`) i kazdy ma caly `<!DOCTYPE html>...`. Gdybysmy chcieli dodac nawigacje na gorze strony, musielibysmy ja dodac w **kazdym** szablonie osobno. Przy 10 stronach to koszmar.
+
+Rozwiazanie: **dziedziczenie szablonow** (template inheritance).
+
+### Teoria: extends i block
+
+Idea jest prosta - tworzymy **szablon bazowy** (`base.html`) ze wspolnymi elementami (nawigacja, naglowek, stopka) i oznaczamy **dziury** (`block`), ktore szablony potomne wypelnia trescia:
+
+```
+base.html (szablon bazowy):
++---------------------------+
+| <nav> Menu | Klienci </nav>|     <- wspolne dla wszystkich stron
+|                           |
+| {% block content %}       |     <- "dziura" - tu wejdzie tresc
+| {% endblock %}            |
+|                           |
+| <footer>Pizzeria</footer> |     <- wspolne dla wszystkich stron
++---------------------------+
+
+pizza_list.html (szablon potomny):
+{% extends "base.html" %}         <- "uzyj base.html jako szkieletu"
+{% block content %}               <- "wypelnij dziure trescia:"
+  <h1>Menu</h1>
+  <ul>...</ul>
+{% endblock %}
+```
+
+**Wynik:** Django wstawia tresc z `pizza_list.html` w miejsce `{% block content %}` w `base.html`. Nawigacja, CSS, JavaScript - wszystko jest w jednym miejscu (`base.html`) i nie trzeba tego powtarzac.
+
+**Kluczowe tagi:**
+- `{% extends "base.html" %}` - MUSI byc **pierwsza linia** szablonu potomnego
+- `{% block nazwa %}...{% endblock %}` - definiuje blok do nadpisania
+- Mozna miec wiele blokow: `title`, `content`, `extra_css`, itp.
+
+### Teoria: Pliki statyczne (CSS, JS, obrazki)
+
+Django obsluguje pliki statyczne (CSS, JavaScript, obrazki) przez system `staticfiles`.
+
+**Konfiguracja** (juz gotowa w szkielecie):
+```python
+# settings.py
+STATIC_URL = 'static/'              # URL pod ktorym dostepne sa pliki statyczne
+STATICFILES_DIRS = [BASE_DIR / 'static']   # Gdzie Django szuka plikow
+```
+
+**Uzycie w szablonie:**
+```html
+{% load static %}                                      <!-- zaladuj tag 'static' -->
+<link rel="stylesheet" href="{% static 'css/style.css' %}">   <!-- uzyj go -->
+```
+
+`{% load static %}` musi byc na poczatku szablonu (po `{% extends %}` jesli jest).
+`{% static 'css/style.css' %}` generuje poprawny URL do pliku, np. `/static/css/style.css`.
+
+### Przegladnij base.html w szkielecie
+
+Otworz plik `templates/base.html` w swoim projekcie - jest juz gotowy w szkielecie:
 
 ```html
 {% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="pl">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Pizzeria{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="/menu/">Pizzeria</a>
             <div class="navbar-nav">
@@ -119,27 +320,35 @@ Np. URL `/menu/Margherita/` -> `pizza_detail(request, name='Margherita')`.
             </div>
         </div>
     </nav>
+
     <div class="container mt-4">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
         {% block content %}{% endblock %}
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 ```
 
-### Settings.py dla static files
+Zwroc uwage na:
+- **`{% block title %}Pizzeria{% endblock %}`** - blok z domyslna wartoscia "Pizzeria". Szablony potomne moga go nadpisac.
+- **`{% block content %}{% endblock %}`** - pusty blok na tresc strony
+- **Bootstrap CDN** - biblioteka CSS dajaca ladne style (przyciski, tabele, nawigacja)
+- **Sekcja messages** - wyswietla komunikaty (uzyjesz pozniej)
+- **`{% load static %}`** i **`{% static 'css/style.css' %}`** - ladowanie naszego CSS
 
-```python
-STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-```
+### Cwiczenie 2: Ostyluj pizza pages
 
-### DO: Ostyluj pizza pages
-
-Cel: dodaj wspolny wyglad (nawigacja, Bootstrap) do wszystkich stron pizzerii.
-
-**Dobra wiadomosc:** `base.html` i `static/css/style.css` sa juz gotowe w szkielecie projektu! Otworz `templates/base.html` i przejrzyj co jest w srodku - nawigacja, Bootstrap CDN, bloki `{% block title %}` i `{% block content %}`.
-
-Teraz zaktualizuj swoje szablony zeby z niego korzystaly:
+**Cel:** zaktualizuj swoje szablony zeby korzystaly z `base.html` zamiast pisac caly HTML od zera.
 
 **Krok 1:** Zmien `pizza_list.html` zeby uzywal base.html:
 
@@ -174,7 +383,7 @@ Teraz zaktualizuj swoje szablony zeby z niego korzystaly:
 
 Porownaj z wersja z poprzedniego cwiczenia - zamiast calego `<!DOCTYPE html>...` mamy tylko tresc strony. Reszta (head, nav, bootstrap) jest w `base.html`.
 
-**Krok 3:** Sprawdz! Odswierz strone - powinienes zobaczyc ciemna nawigacje na gorze i ostylowana tresc.
+**Krok 3:** Sprawdz! Odswiez strone - powinienes zobaczyc ciemna nawigacje na gorze i ostylowana tresc.
 
 Jesli widzisz blad "TemplateDoesNotExist: base.html" - sprawdz czy w `settings.py` masz:
 ```python
@@ -184,13 +393,137 @@ TEMPLATES = [{'DIRS': [BASE_DIR / 'templates'], ...}]
 
 ---
 
-## Czesc 3: Formularze HTML (30 min)
+## Czesc 4: Formularze HTML (45 min)
 
-### SHOW: Formularz kontaktowy (GENERIC)
+### Teoria: HTTP GET vs POST
+
+Do tej pory uzywalismy tylko **GET** - przegladarka prosi o strone, serwer ja zwraca:
+
+```
+Przegladarka  --GET /menu/-->  Django  --HTML-->  Przegladarka
+              "daj mi liste pizz"     "oto lista"
+```
+
+Ale co jesli uzytkownik chce **wyslac dane** do serwera (np. dodac nowa pizze)? Do tego sluzy **POST**:
+
+```
+Przegladarka  --POST /menu/dodaj/-->  Django  --redirect-->  Przegladarka
+              "oto dane nowej pizzy"   "OK, dodano"          --GET /menu/-->
+```
+
+**Roznice:**
+| | GET | POST |
+|---|---|---|
+| **Cel** | Pobranie danych | Wyslanie danych |
+| **Dane** | W URL (np. `?q=pizza`) | W body requestu (niewidoczne) |
+| **Bezpieczenstwo** | Dane widoczne w URL | Dane ukryte |
+| **Uzycie** | Wyswietlanie stron | Formularze, logowanie, zamowienia |
+
+### Teoria: Formularz HTML
+
+Formularz HTML to sposob na zebranie danych od uzytkownika:
+
+```html
+<form method="post" action="/menu/dodaj/">
+    <input type="text" name="pizza_name">
+    <input type="number" name="price">
+    <button type="submit">Wyslij</button>
+</form>
+```
+
+Gdy uzytkownik kliknie "Wyslij":
+1. Przegladarka zbiera dane ze wszystkich pol (`name="pizza_name"`, `name="price"`)
+2. Wysyla je jako POST na adres z `action` (lub na biezacy URL jesli brak `action`)
+3. Django odbiera dane w `request.POST`:
+
+```python
+def pizza_add(request):
+    if request.method == 'POST':
+        name = request.POST.get('pizza_name')     # wartosc z inputa name="pizza_name"
+        price = request.POST.get('price')          # wartosc z inputa name="price"
+```
+
+### Teoria: CSRF - ochrona formularzy
+
+**CSRF** (Cross-Site Request Forgery) to atak gdzie zlosliwa strona wysyla formularz w Twoim imieniu. Django wymaga tokena CSRF w kazdym formularzu POST:
+
+```html
+<form method="post">
+    {% csrf_token %}          <!-- WYMAGANE! Django odrzuci formularz bez tego -->
+    <input type="text" name="name">
+    <button type="submit">Wyslij</button>
+</form>
+```
+
+`{% csrf_token %}` generuje ukryty input z unikalnym tokenem. Django sprawdza ten token przy kazdym POST - jezeli go nie ma lub jest nieprawidlowy, zwraca blad 403 Forbidden.
+
+**Zasada:** Kazdy `<form method="post">` w Django MUSI miec `{% csrf_token %}`.
+
+### Teoria: Wzorzec POST-Redirect-GET
+
+Co sie stanie jesli po wyslaniu formularza uzytkownik kliknie F5 (odswiez strone)? Przegladarka wyslalaby formularz **ponownie** - np. dodajac pizze drugi raz!
+
+Rozwiazanie: **POST-Redirect-GET** (PRG):
+
+```
+1. Uzytkownik wysyla formularz      -> POST /menu/dodaj/
+2. Serwer przetwarza dane           -> dodaje pizze do JSON
+3. Serwer zwraca REDIRECT           -> redirect('/menu/')
+4. Przegladarka robi GET /menu/     -> wyswietla liste (z nowa pizza)
+5. Uzytkownik klika F5              -> GET /menu/ (bezpieczne!)
+```
+
+W Django:
+```python
+from django.shortcuts import redirect
+
+def pizza_add(request):
+    if request.method == 'POST':
+        # ... przetworzenie danych ...
+        return redirect('pizza_list')     # <- przekierowanie po sukcesie
+    return render(request, 'pizza_form.html')   # <- GET: pokaz formularz
+```
+
+### Wzorzec view z formularzem
+
+Kazdy view obslugujacy formularz ma **ta sama strukture**:
+
+```python
+def my_form_view(request):
+    if request.method == 'POST':
+        # 1. Odczytaj dane z formularza
+        name = request.POST.get('name', '').strip()
+
+        # 2. Waliduj dane
+        errors = []
+        if not name:
+            errors.append("Pole jest wymagane.")
+
+        # 3. Jesli OK - przetworz i przekieruj
+        if not errors:
+            try:
+                # ... zapis do pliku, bazy, itp ...
+                return redirect('success_page')
+            except SomeError as e:
+                errors.append(str(e))
+
+        # 4. Jesli bledy - pokaz formularz ponownie z bledami
+        return render(request, 'form.html', {
+            'errors': errors,
+            'name': name,         # zachowaj wpisane dane
+        })
+
+    # GET: pokaz pusty formularz
+    return render(request, 'form.html')
+```
+
+Ten wzorzec powtarza sie w **kazdym** formularzu. Zapamietaj go - uzyjesz go wielokrotnie dzisiaj.
+
+### Demonstracja: Formularz kontaktowy (GENERIC)
 
 ```python
 # views.py
-from django.shortcuts import redirect
+from django.shortcuts import render, redirect
 
 def contact(request):
     if request.method == 'POST':
@@ -213,15 +546,9 @@ def contact(request):
 </form>
 ```
 
-### Kluczowe elementy:
-1. `method="post"` - wysylanie danych
-2. `{% csrf_token %}` - ochrona przed CSRF
-3. `request.POST.get('name')` - odczyt danych
-4. `redirect()` - przekierowanie po sukcesie
+### Cwiczenie 3: Formularz dodawania pizzy
 
-### DO: Formularz dodawania pizzy
-
-Cel: stworz strone /menu/dodaj/ z formularzem do dodawania nowej pizzy do menu.
+**Cel:** stworz strone /menu/dodaj/ z formularzem do dodawania nowej pizzy do menu.
 
 **Krok 1:** Stworz template `menu_app/templates/menu_app/pizza_form.html`:
 
@@ -259,9 +586,9 @@ Cel: stworz strone /menu/dodaj/ z formularzem do dodawania nowej pizzy do menu.
 ```
 
 Zwroc uwage:
-- `{% csrf_token %}` - **WYMAGANE** w kazdym formularzu POST w Django (ochrona przed atakami CSRF)
+- `{% csrf_token %}` - **WYMAGANE** w kazdym formularzu POST w Django
 - `method="post"` - dane ida w body requestu, nie w URL
-- `value="{{ name }}"` - zachowuje wpisana wartosc gdy formularz sie nie powiedzie
+- `value="{{ name }}"` - zachowuje wpisana wartosc gdy formularz sie nie powiedzie (zeby uzytkownik nie musial wpisywac od nowa)
 
 **Krok 2:** Dodaj view w `menu_app/views.py`:
 
@@ -270,101 +597,6 @@ from django.shortcuts import redirect
 from rozwiazanie_weekend2.pizza import Pizza, Menu
 from rozwiazanie_weekend2.exceptions import InvalidPriceError, DuplicatePizzaError
 
-def pizza_add(request):
-    if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        price_str = request.POST.get('price', '').strip()
-        try:
-            price = float(price_str)
-            pizza = Pizza(name, price)
-            menu = Menu()
-            menu.load_from_file(MENU_FILE)
-            menu.add_pizza(pizza)
-            menu.save_to_file(MENU_FILE)
-            return redirect('pizza_list')
-        except (ValueError, InvalidPriceError, DuplicatePizzaError) as e:
-            return render(request, 'menu_app/pizza_form.html', {
-                'errors': [str(e)],
-                'name': name,
-                'price': price_str,
-            })
-    return render(request, 'menu_app/pizza_form.html')
-```
-
-Zwroc uwage na wzorzec:
-- `if request.method == 'POST'` - formularz zostal wyslany -> przetwarzaj dane
-- `else` (GET) - uzytkownik dopiero wchodzi na strone -> pokaz pusty formularz
-- `redirect('pizza_list')` - po sukcesie przekieruj na liste (zeby F5 nie wyslal formularza ponownie)
-- `except` - przy bledzie pokaz formularz ponownie z komunikatem bledu
-
-**Krok 3:** Dodaj URL w `menu_app/urls.py`:
-
-```python
-path('dodaj/', views.pizza_add, name='pizza_add'),
-```
-
-**WAZNE:** `dodaj/` musi byc PRZED `<str:name>/` w liscie URL, bo inaczej Django potraktuje "dodaj" jako nazwe pizzy!
-
-```python
-# menu_app/urls.py - poprawna kolejnosc
-urlpatterns = [
-    path('', views.pizza_list, name='pizza_list'),
-    path('dodaj/', views.pizza_add, name='pizza_add'),        # PRZED <str:name>
-    path('<str:name>/', views.pizza_detail, name='pizza_detail'),
-]
-```
-
-**Krok 4:** Dodaj link w `pizza_list.html`:
-
-```html
-<a href="/menu/dodaj/">Dodaj nowa pizze</a>
-```
-
-**Krok 5:** Sprawdz! Wejdz na /menu/dodaj/, wypelnij formularz, kliknij "Dodaj". Nowa pizza powinna pojawic sie na liscie.
-
----
-
-## Czesc 4: Error Handling w Views (20 min)
-
-### SHOW: Obsluga bledow
-
-```python
-from django.http import Http404
-from rozwiazanie_weekend2.exceptions import PizzaNotFoundError
-
-def pizza_detail(request, name):
-    try:
-        pizza = menu.find_pizza(name)
-    except PizzaNotFoundError:
-        raise Http404(f"Pizza '{name}' nie znaleziona")
-    return render(request, 'menu_app/pizza_detail.html', {'pizza': pizza})
-```
-
-### Wzorzec: try/except w views
-
-```python
-def pizza_add(request):
-    if request.method == 'POST':
-        errors = []
-        # ... walidacja ...
-        if not errors:
-            try:
-                # ... operacja ...
-                messages.success(request, "Sukces!")
-                return redirect('pizza_list')
-            except SomeError as e:
-                errors.append(str(e))
-        return render(request, 'form.html', {'errors': errors})
-    return render(request, 'form.html')
-```
-
-### DO: Error handling w formularzu
-
-Cel: formularz dodawania pizzy powinien wyswietlac czytelne komunikaty bledow.
-
-**Krok 1:** Zaktualizuj view `pizza_add` - dodaj walidacje PRZED proba utworzenia pizzy:
-
-```python
 def pizza_add(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
@@ -401,59 +633,65 @@ def pizza_add(request):
     return render(request, 'menu_app/pizza_form.html')
 ```
 
-**Krok 2:** Przetestuj bledy:
+Przejdz przez ten kod i rozpoznaj wzorzec z teorii:
+- `if request.method == 'POST'` - formularz zostal wyslany -> przetwarzaj dane
+- `else` (GET) - uzytkownik dopiero wchodzi na strone -> pokaz pusty formularz
+- `redirect('pizza_list')` - PRG: po sukcesie przekieruj na liste
+- `except` - przy bledzie pokaz formularz ponownie z komunikatem bledu
+- Walidacja `if not name` - sprawdzenie PRZED proba zapisu
+
+Zwroc uwage na obsluge **wyjatkow z Weekend 2**: `InvalidPriceError` (cena <= 0), `DuplicatePizzaError` (pizza juz istnieje). Zamiast crashowac serwer, lapiesz wyjatek i wyswietlasz czytelny komunikat.
+
+**Krok 3:** Dodaj URL w `menu_app/urls.py`:
+
+```python
+path('dodaj/', views.pizza_add, name='pizza_add'),
+```
+
+**WAZNE:** `dodaj/` musi byc PRZED `<str:name>/` w liscie URL, bo inaczej Django potraktuje "dodaj" jako nazwe pizzy!
+
+```python
+# menu_app/urls.py - poprawna kolejnosc
+urlpatterns = [
+    path('', views.pizza_list, name='pizza_list'),
+    path('dodaj/', views.pizza_add, name='pizza_add'),        # PRZED <str:name>
+    path('<str:name>/', views.pizza_detail, name='pizza_detail'),
+]
+```
+
+**Krok 4:** Dodaj link w `pizza_list.html`:
+
+```html
+<a href="/menu/dodaj/">Dodaj nowa pizze</a>
+```
+
+**Krok 5:** Sprawdz! Wejdz na /menu/dodaj/, wypelnij formularz, kliknij "Dodaj". Nowa pizza powinna pojawic sie na liscie.
+
+**Bonus - przetestuj obsluge bledow:**
 - Wyslij pusty formularz -> "Nazwa pizzy jest wymagana."
 - Wpisz cene -5 -> blad z `InvalidPriceError`
 - Wpisz nazwe pizzy ktora juz istnieje (np. "Margherita") -> blad z `DuplicatePizzaError`
-- Wpisz "abc" jako cene -> blad z `ValueError`
 
 ---
 
 ## Czesc 5: Customer Views (40 min)
 
-### SHOW: Lista klientow + dodawanie
+### Teoria: Budowanie kolejnego appa
 
-```python
-# customers_app/views.py
-import os
-from django.shortcuts import render, redirect
-from rozwiazanie_weekend2 import DATA_DIR
-from rozwiazanie_weekend2.customer import Customer, VIPCustomer, CustomerManager
+Teraz powtorz caly proces tworzenia appa, ktory poznales wczoraj dla `menu_app`:
 
-CUSTOMERS_FILE = os.path.join(DATA_DIR, 'customers.json')
+1. `python manage.py startapp <nazwa>` - stworz app
+2. Dodaj do `INSTALLED_APPS` w settings.py - zarejestruj go
+3. Dodaj `include()` w glownym urls.py - podlacz routing
+4. Napisz views.py - logika
+5. Stworz urls.py w appie - mapowanie URL -> view
+6. Stworz templates - szablony HTML
 
-def customer_list(request):
-    manager = CustomerManager()
-    manager.load_from_file(CUSTOMERS_FILE)
-    return render(request, 'customers_app/customer_list.html', {
-        'customers': list(manager),
-    })
+Ten wzorzec powtarza sie przy kazdym nowym appie. Do konca dnia zrobisz go jeszcze dwa razy - za kazdym razem powinno isc szybciej.
 
-def customer_add(request):
-    if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        phone = request.POST.get('phone', '').strip()
-        customer_type = request.POST.get('type', 'regular')
+### Cwiczenie 4: Pelne customers_app
 
-        manager = CustomerManager()
-        manager.load_from_file(CUSTOMERS_FILE)
-
-        if customer_type == 'vip':
-            discount = float(request.POST.get('discount', 10))
-            customer = VIPCustomer(name, phone, discount)
-        else:
-            customer = Customer(name, phone)
-
-        manager.add_customer(customer)
-        manager.save_to_file(CUSTOMERS_FILE)
-        return redirect('customer_list')
-
-    return render(request, 'customers_app/customer_form.html')
-```
-
-### DO: Pelne customers_app
-
-Cel: zbuduj nowy app do zarzadzania klientami - lista klientow + formularz dodawania (z wyborem typu regular/VIP).
+**Cel:** zbuduj nowy app do zarzadzania klientami - lista klientow + formularz dodawania (z wyborem typu regular/VIP).
 
 **Krok 1:** Stworz nowy app:
 
@@ -535,6 +773,8 @@ def customer_add(request):
     return render(request, 'customers_app/customer_form.html')
 ```
 
+Zwroc uwage na nowy element: **wybor typu klienta**. Formularz wysyla `type` ('regular' lub 'vip') i na tej podstawie tworzymy `Customer` lub `VIPCustomer` z Weekend 1. Dziedziczenie, ktore pisalismy na Weekend 1, teraz dziala w aplikacji webowej!
+
 **Krok 3:** Stworz `customers_app/urls.py`:
 
 ```python
@@ -549,7 +789,11 @@ urlpatterns = [
 
 Routing glowny (`pizzeria_project/urls.py`) juz podpielismy w Kroku 1B.
 
-**Krok 4:** Stworz template `customers_app/templates/customers_app/customer_list.html`:
+**Krok 4:** Stworz katalog na templates i plik `customers_app/templates/customers_app/customer_list.html`:
+
+```bash
+mkdir -p customers_app/templates/customers_app
+```
 
 ```html
 {% extends "base.html" %}
@@ -576,7 +820,7 @@ Routing glowny (`pizzeria_project/urls.py`) juz podpielismy w Kroku 1B.
 {% endblock %}
 ```
 
-Uwaga: `customer.discount_percent` istnieje tylko na VIPCustomer - dla zwyklego klienta sprawdzamy `is not None`.
+Uwaga: `customer.discount_percent` istnieje tylko na `VIPCustomer` - dla zwyklego klienta bedzie `None`.
 
 **Krok 5:** Stworz template `customers_app/templates/customers_app/customer_form.html`:
 
@@ -625,31 +869,39 @@ Uwaga: `customer.discount_percent` istnieje tylko na VIPCustomer - dla zwyklego 
 {% endblock %}
 ```
 
+Nowy element HTML: **`<select>`** - lista rozwijana. `<option value="vip">VIP</option>` oznacza: wyswietl tekst "VIP", a wysylaj wartosc `"vip"` w `request.POST.get('type')`.
+
 **Krok 6:** Sprawdz! Wejdz na /klienci/ - zobaczysz istniejacych klientow z pliku JSON. Dodaj nowego przez formularz.
 
 ---
 
 ## Czesc 6: Order Views (50 min)
 
-### SHOW: Order list + detail
+### Teoria: Zamowienia - zlozonosc rosnie
 
-Kluczowa zlozonosc: zamowienia lacza klientow z pizzami.
+Zamowienia to najzlozniejsza czesc aplikacji, bo lacza dane z **dwoch zrodel**:
+- Menu (pizze) - `rozwiazanie_weekend2/data/menu.json`
+- Klienci - `rozwiazanie_weekend2/data/customers.json`
 
-```python
-# orders_app/views.py
-def order_list(request):
-    orders_data = _load_orders()  # z pliku JSON
-    # ... przygotuj dane do wyswietlenia ...
-    return render(request, 'orders_app/order_list.html', {'orders': orders_display})
+Dodatkowo zamowienia musimy zapisywac recznie w JSON, bo nasz engine z Weekend 2 nie mial `OrderManager.save_to_file()`. To dobry przyklad jak laczyc istniejacy kod z nowym.
 
-def order_detail(request, order_id):
-    # Znajdz zamowienie, oblicz sumy, rabaty VIP
-    return render(request, 'orders_app/order_detail.html', context)
+**Struktura zamowienia w JSON:**
+```json
+{
+    "id": 1,
+    "customer_id": 2,
+    "items": [
+        {"pizza_name": "Margherita", "pizza_price": 25.0, "quantity": 2}
+    ],
+    "discount_percent": 15
+}
 ```
 
-### DO: Order list + detail views
+`discount_percent` jest `null` dla zwyklych klientow, a dla VIP przechowuje rabat.
 
-Cel: zbuduj app do wyswietlania zamowien. Zamowienia sa zapisywane jako JSON - kazde zamowienie laczy klienta z pizzami.
+### Cwiczenie 5: Order list + detail views
+
+**Cel:** zbuduj app do wyswietlania zamowien.
 
 **Krok 1:** Stworz nowy app:
 
@@ -711,7 +963,7 @@ def _save_orders(orders_data):
         json.dump(orders_data, f, indent=2, ensure_ascii=False)
 ```
 
-Uwaga: zamowienia zapisujemy recznie przez `json.load/dump` bo nasz engine z Weekend 2 nie mial `OrderManager.save_to_file()`. To dobry przyklad jak laczyc istniejacy kod z nowym.
+Funkcje `_load_orders()` i `_save_orders()` to **helpery** (prywatne funkcje, przedrostek `_`) uzywane przez inne views. Uzywamy surowego `json.load/dump` bo nasz engine nie mial zapisu zamowien do plikow.
 
 **Krok 3:** Dodaj view listy zamowien:
 
@@ -746,6 +998,8 @@ def order_list(request):
 
     return render(request, 'orders_app/order_list.html', {'orders': orders_display})
 ```
+
+Zwroc uwage: view przygotowuje dane **specjalnie pod template** (`orders_display`). Zamiast przekazywac surowe dane JSON, tworzy slowniki z gotowymi wartosciami do wyswietlenia (nazwa klienta zamiast ID, obliczona suma). To dobra praktyka - template powinien byc prosty, logika w views.
 
 **Krok 4:** Dodaj view szczegulow zamowienia:
 
@@ -804,6 +1058,8 @@ def order_detail(request, order_id):
     })
 ```
 
+Tu znowu widzisz `raise Http404(...)` z Czesci 2 - ten sam wzorzec: szukamy zasobu, jesli go nie ma -> 404.
+
 **Krok 5:** Stworz `orders_app/urls.py`:
 
 ```python
@@ -816,7 +1072,15 @@ urlpatterns = [
 ]
 ```
 
-**Krok 6:** Stworz template `orders_app/templates/orders_app/order_list.html`:
+`<int:order_id>` - parametr URL jako liczba calkowita (pamietasz teorie z Czesci 2?).
+
+**Krok 6:** Stworz katalog i templates:
+
+```bash
+mkdir -p orders_app/templates/orders_app
+```
+
+Stworz `orders_app/templates/orders_app/order_list.html`:
 
 ```html
 {% extends "base.html" %}
@@ -844,7 +1108,7 @@ urlpatterns = [
 {% endblock %}
 ```
 
-**Krok 7:** Stworz template `orders_app/templates/orders_app/order_detail.html`:
+Stworz `orders_app/templates/orders_app/order_detail.html`:
 
 ```html
 {% extends "base.html" %}
@@ -877,37 +1141,52 @@ urlpatterns = [
 {% endblock %}
 ```
 
-**Krok 8:** Na razie lista zamowien bedzie pusta (nie mamy jeszcze formularza tworzenia). To OK - formularz dodamy w nastepnym cwiczeniu.
+**Krok 7:** Na razie lista zamowien bedzie pusta (nie mamy jeszcze formularza tworzenia). To OK - formularz dodamy w nastepnym cwiczeniu.
 
 ---
 
 ## Czesc 7: Formularz zamowienia (40 min)
 
-### SHOW: Formularz z select
+### Teoria: Formularz z danymi z wielu zrodel
 
-```html
-<form method="post">
-    {% csrf_token %}
-    <select name="customer_id">
-        {% for customer in customers %}
-        <option value="{{ customer.id }}">{{ customer.name }}</option>
-        {% endfor %}
-    </select>
+Formularz zamowienia jest bardziej zlozony niz poprzednie formularze, bo zamiast wolnego pola tekstowego (jak nazwa pizzy) mamy **listy wyboru** (select):
 
-    <select name="pizza_name">
-        {% for pizza in pizzas %}
-        <option value="{{ pizza.name }}">{{ pizza.name }} ({{ pizza.price }} zl)</option>
-        {% endfor %}
-    </select>
-    <input type="number" name="quantity" min="1" value="1">
+- Wybierz klienta -> z listy klientow z JSON
+- Wybierz pizze -> z menu z JSON
 
-    <button type="submit">Zloz zamowienie</button>
-</form>
+To oznacza ze view musi **zaladowac dane** (liste klientow, liste pizz) ZANIM wyrenderuje formularz - zeby wypelnic `<select>`:
+
+```python
+def order_create(request):
+    # Zaladuj dane do wypelnienia select-ow
+    menu = Menu()
+    menu.load_from_file(MENU_FILE)
+    customer_mgr = CustomerManager()
+    customer_mgr.load_from_file(CUSTOMERS_FILE)
+
+    # Przekaz dane do template (zarowno dla GET jak i POST z bledami)
+    return render(request, 'order_form.html', {
+        'pizzas': list(menu),
+        'customers': list(customer_mgr),
+    })
 ```
 
-### DO: Order creation form
+**Element HTML `<select>`** generuje liste rozwijana:
+```html
+<select name="customer_id">
+    {% for customer in customers %}
+    <option value="{{ customer.id }}">{{ customer.name }}</option>
+    {% endfor %}
+</select>
+```
 
-Cel: stworz formularz na /zamowienia/nowe/ gdzie mozna wybrac klienta, pizze i ilosc.
+Kazdy `<option>` ma:
+- `value` - wartosc wysylana w POST (np. ID klienta)
+- Tekst miedzy tagami - to co widzi uzytkownik (np. imie klienta)
+
+### Cwiczenie 6: Order creation form
+
+**Cel:** stworz formularz na /zamowienia/nowe/ gdzie mozna wybrac klienta, pizze i ilosc.
 
 **Krok 1:** Dodaj view `order_create` w `orders_app/views.py`:
 
@@ -977,7 +1256,10 @@ def order_create(request):
     })
 ```
 
-Zwroc uwage: view musi zaladowac liste klientow I liste pizz zeby wyswietlic je w formularz jako `<select>`.
+Zwroc uwage na:
+- `hasattr(customer, 'discount_percent')` - sprawdzamy czy klient to VIP (ma atrybut z Weekend 1)
+- `redirect('order_detail', order_id=next_id)` - `redirect()` moze przyjac **argumenty URL** (tu `order_id`) zeby przekierowac na strone szczegulow nowego zamowienia
+- View **laduje dane na poczatku** (przed `if POST`) bo potrzebuje ich zarowno do wyswietlenia formularza (GET) jak i do przetworzenia (POST)
 
 **Krok 2:** Dodaj URL w `orders_app/urls.py`:
 
@@ -1042,9 +1324,13 @@ urlpatterns = [
 
 ---
 
-## Czesc 8: Django Messages + Finishing Touches (15 min)
+## Czesc 8: Django Messages (15 min)
 
-### SHOW: Messages framework
+### Teoria: Komunikaty dla uzytkownika
+
+Po dodaniu pizzy czy zlozeniu zamowienia uzytkownik jest przekierowywany na liste. Ale skad wie, ze operacja sie powiodla? Jedyne co widzi to lista - moze nie zauwazy zmian.
+
+Django ma wbudowany **messages framework** - mechanizm do wyswietlania jednorazowych komunikatow:
 
 ```python
 from django.contrib import messages
@@ -1052,12 +1338,21 @@ from django.contrib import messages
 def pizza_add(request):
     if request.method == 'POST':
         # ... obsluga formularza ...
-        messages.success(request, f"Dodano pizze: {name}")
+        messages.success(request, f"Dodano pizze: {name}")     # <- komunikat
         return redirect('pizza_list')
 ```
 
+Komunikat jest zapisywany w sesji (cookie) i wyswietlany **dokladnie raz** - po odswieszeniu strony znika.
+
+Typy komunikatow:
+- `messages.success(request, "...")` - sukces (zielony)
+- `messages.error(request, "...")` - blad (czerwony)
+- `messages.warning(request, "...")` - ostrzezenie (zolty)
+- `messages.info(request, "...")` - informacja (niebieski)
+
+Wyswietlanie w template (juz jest w naszym `base.html`!):
+
 ```html
-<!-- base.html -->
 {% if messages %}
 {% for message in messages %}
 <div class="alert alert-{{ message.tags }}">{{ message }}</div>
@@ -1065,18 +1360,52 @@ def pizza_add(request):
 {% endif %}
 ```
 
+`message.tags` to klasa CSS odpowiadajaca typowi komunikatu (`success`, `error`, itp.). Bootstrap stylizuje je automatycznie.
+
+### Cwiczenie 7: Dodaj messages do swoich views
+
+**Zadanie:** Dodaj komunikaty sukcesu do:
+- `pizza_add` - po dodaniu pizzy
+- `customer_add` - po dodaniu klienta
+- `order_create` - po zlozeniu zamowienia
+
+Przyklad dla `pizza_add`:
+
+```python
+from django.contrib import messages
+
+def pizza_add(request):
+    if request.method == 'POST':
+        # ... cala obsluga formularza ...
+        if not errors:
+            try:
+                # ... zapis ...
+                messages.success(request, f"Dodano pizze: {name}")   # <- DODAJ
+                return redirect('pizza_list')
+            except ...
+```
+
+Sprawdz - po dodaniu pizzy powinienes zobaczyc zielony komunikat na gorze strony.
+
 ---
 
 ## Czesc 9: Pelna integracja (25 min)
 
-### DO: Przetestuj caly flow
+### Cwiczenie 8: Przetestuj caly flow
 
-1. Przegladaj menu (/menu/)
-2. Dodaj nowa pizze (/menu/dodaj/)
-3. Dodaj nowego klienta (/klienci/dodaj/)
-4. Zloz zamowienie (/zamowienia/nowe/)
-5. Zobacz szczegoly zamowienia
-6. Sprawdz czy VIP rabat sie nalicza
+Pora przetestowac cala aplikacje end-to-end. Przejdz przez ten scenariusz:
+
+1. **Menu:** Przegladaj menu (/menu/) - kliknij na pizze, zobacz szczegoly
+2. **Dodaj pizze:** Wejdz na /menu/dodaj/, dodaj "Diavola" za 34 zl
+3. **Dodaj klienta:** Wejdz na /klienci/dodaj/, dodaj klienta VIP z rabatem 20%
+4. **Zloz zamowienie:** Wejdz na /zamowienia/nowe/, wybierz nowego klienta VIP i pizze
+5. **Sprawdz rabat:** Zobacz szczegoly zamowienia - rabat VIP powinien sie naliczac
+6. **Przetestuj bledy:**
+   - Sprobuj dodac pizze z ujemna cena
+   - Sprobuj dodac pizze ktora juz istnieje
+   - Wejdz na /menu/NieIstniejaca/ - powinien byc 404
+
+Jezeli wszystko dziala - gratulacje! Masz pelna aplikacje webowa zbudowana na Django, ktora uzywa kodu z Weekend 1 i 2 jako backend.
 
 ---
 
@@ -1091,15 +1420,75 @@ Weekend 3: Git -> Django (views, templates, forms)
 Weekend 4: REST API -> wiecej Django
 ```
 
-### Co zrobilismy dzisiaj:
-- Git: kontrola wersji, branches, GitHub
-- Django: views, templates, URL routing
-- Formularze HTML + CSRF
-- Pelna aplikacja webowa bez bazy danych!
-- Integracja rozwiazanie_weekend2/ z Django
+### Co zrobilismy dzisiaj
 
-### Co dalej (Weekend 4):
+- **Detail views** z parametrami URL (`<str:name>`, `<int:id>`)
+- **Dziedziczenie szablonow** (`extends`, `block`) + Bootstrap
+- **Formularze HTML** z obsluga POST + CSRF + walidacja
+- **Wzorzec POST-Redirect-GET** - bezpieczne formularze
+- **Error handling** - polaczenie wyjatkow z Weekend 2 z Django views
+- **Messages framework** - komunikaty uzytkownikowi
+- **Pelna aplikacja webowa** bez bazy danych!
+
+### Kluczowe wzorce do zapamietania
+
+1. **Nowy app:** `startapp` -> `INSTALLED_APPS` -> `include()` w urls.py
+2. **View z formularzem:** `if POST` -> walidacja -> zapis -> redirect | `else` -> pusty formularz
+3. **Parametr URL:** `<typ:nazwa>` w urls.py -> argument w view
+4. **Http404:** `raise Http404(...)` gdy zasob nie istnieje
+5. **CSRF:** `{% csrf_token %}` w kazdym `<form method="post">`
+
+### Co dalej (Weekend 4)
+
 - REST API z Django REST Framework
 - JSON responses zamiast HTML
 - Testowanie API
 - Deployment
+
+---
+
+## Materialy dodatkowe
+
+### Struktura finalna projektu
+
+```
+pizzeria_django/
+├── manage.py
+├── pizzeria_project/              # Konfiguracja
+│   ├── settings.py
+│   ├── urls.py                    # Glowny routing -> 3 appy
+│   └── wsgi.py
+├── rozwiazanie_weekend2/          # Engine z Weekend 1+2
+│   ├── pizza.py, customer.py, order.py, exceptions.py
+│   └── data/
+│       ├── menu.json, customers.json, orders.json
+├── menu_app/                      # App: menu pizz
+│   ├── views.py                   # pizza_list, pizza_detail, pizza_add
+│   ├── urls.py
+│   └── templates/menu_app/
+├── customers_app/                 # App: klienci
+│   ├── views.py                   # customer_list, customer_add
+│   ├── urls.py
+│   └── templates/customers_app/
+├── orders_app/                    # App: zamowienia
+│   ├── views.py                   # order_list, order_detail, order_create
+│   ├── urls.py
+│   └── templates/orders_app/
+├── templates/
+│   └── base.html                  # Szablon bazowy z Bootstrap
+└── static/
+    └── css/style.css
+```
+
+### Kluczowe URL-e
+
+| URL | View | Opis |
+|-----|------|------|
+| `/menu/` | pizza_list | Lista pizz |
+| `/menu/<str:name>/` | pizza_detail | Szczegoly pizzy |
+| `/menu/dodaj/` | pizza_add | Formularz dodawania |
+| `/klienci/` | customer_list | Lista klientow |
+| `/klienci/dodaj/` | customer_add | Formularz dodawania |
+| `/zamowienia/` | order_list | Lista zamowien |
+| `/zamowienia/<int:order_id>/` | order_detail | Szczegoly zamowienia |
+| `/zamowienia/nowe/` | order_create | Formularz zamowienia |

@@ -1,0 +1,8 @@
+<h1>Ksiazki</h1>
+<ul>
+{% for book in books %}
+    <li>{{ book.title }} - {{ book.author }}</li>
+{% empty %}
+    <li>Brak ksiazek</li>
+{% endfor %}
+</ul>
