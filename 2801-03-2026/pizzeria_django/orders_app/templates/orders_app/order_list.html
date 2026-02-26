@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Zamowienia - Pizzeria{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Zamowienia</h1>
+    <a href="{% url 'order_create' %}" class="btn btn-success">Nowe zamowienie</a>
+</div>
+
+{% if orders %}
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Klient</th>
+            <th>Pozycje</th>
+            <th>Kwota</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+        <tr>
+            <td>{{ order.id }}</td>
+            <td>
+                {{ order.customer_name }}
+                {% if order.is_vip %}<span class="vip-badge">VIP -{{ order.discount_percent }}%</span>{% endif %}
+            </td>
+            <td>{{ order.items_count }} poz.</td>
+            <td class="price">{{ order.total }} zl</td>
+            <td><a href="{% url 'order_detail' order.id %}" class="btn btn-outline-primary btn-sm">Szczegoly</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p><strong>Laczny przychod: {{ total_revenue }} zl</strong></p>
+{% else %}
+<p class="text-muted">Brak zamowien. <a href="{% url 'order_create' %}">Zloz pierwsze zamowienie!</a></p>
+{% endif %}
+{% endblock %}

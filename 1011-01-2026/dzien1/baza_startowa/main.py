@@ -10,6 +10,7 @@
 from pizza import Pizza, Menu
 from customer import Customer, VIPCustomer, CustomerManager
 from order import Order, OrderManager
+from exceptions import PizzeriaError
 
 
 def main():
@@ -73,15 +74,20 @@ def main():
     print("PROBLEMY DO ROZWIĄZANIA W TYM WEEKENDZIE:")
     print("=" * 50)
 
-    print("\n1. Brak walidacji danych:")
-    # To powinno rzucić wyjątek, ale teraz nie rzuca!
-    pizza_invalid = Pizza("Pizza z ujemną ceną", -10)
-    print(f"   Stworzyliśmy pizzę z ceną: {pizza_invalid.price} zł (to nie powinno być możliwe!)")
+    try:
+        pizza_invalid = Pizza("Pizza z ujemną ceną", -10)
+    except PizzeriaError as e:
+        print('Wyjątek przy tworzeniu pizzy:', e)
 
-    print("\n2. Brak obsługi nieistniejących elementów:")
-    # To zwraca None zamiast rzucić wyjątek
-    result = menu.find_pizza("Nieistniejąca Pizza")
-    print(f"   Szukanie nieistniejącej pizzy zwraca: {result} (powinien być wyjątek!)")
+    try:
+        pizza1.update_price(-10)
+    except PizzeriaError as e:
+        print('Wyjątek przy aktualizacji ceny pizzy:', e)
+
+    try:
+        result = menu.find_pizza("Nieistniejąca Pizza")
+    except PizzeriaError as e:
+        print('Wyjątek przy szukaniu pizzy:', e)
 
     print("\n3. Brak persystencji danych:")
     print("   Po zamknięciu programu wszystkie dane są tracone!")

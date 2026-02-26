@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Zamowienie #{{ order_id }} - Pizzeria{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'order_list' %}">Zamowienia</a></li>
+        <li class="breadcrumb-item active">Zamowienie #{{ order_id }}</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Zamowienie #{{ order_id }}</h2>
+        <p class="mb-0">Klient: <strong>{{ customer_name }}</strong></p>
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Pizza</th>
+                    <th>Cena jedn.</th>
+                    <th>Ilosc</th>
+                    <th>Razem</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.pizza_name }}</td>
+                    <td>{{ item.pizza_price }} zl</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.total }} zl</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="text-end"><strong>Suma:</strong></td>
+                    <td>{{ subtotal }} zl</td>
+                </tr>
+                {% if discount_percent %}
+                <tr class="text-success">
+                    <td colspan="3" class="text-end">Rabat VIP ({{ discount_percent }}%):</td>
+                    <td>-{{ discount_amount }} zl</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td colspan="3" class="text-end"><strong>Do zaplaty:</strong></td>
+                    <td class="price"><strong>{{ total }} zl</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<a href="{% url 'order_list' %}" class="btn btn-secondary mt-3">Powrot do listy</a>
+{% endblock %}

@@ -1,11 +1,13 @@
 # Klasa Pizza - reprezentuje pizzę w menu
 # Baza startowa dla Weekendu 2 (bez obsługi wyjątków - to będzie temat tego weekendu!)
+from exceptions import InvalidPriceError, PizzaNotFoundError
 
 class Pizza:
     """Reprezentuje pojedynczą pizzę w menu."""
 
     def __init__(self, name, price):
-        # TODO: W tym weekendzie dodamy walidację z własnymi wyjątkami!
+        if price < 0:
+            raise InvalidPriceError(price)
         self.name = name
         self.price = price
 
@@ -22,8 +24,21 @@ class Pizza:
 
     def update_price(self, new_price):
         """Aktualizuje cenę pizzy."""
-        # TODO: Dodamy walidację ceny z wyjątkiem
+        if new_price < 0:
+            raise InvalidPriceError(new_price)
+
         self.price = new_price
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "price": self.price
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        #pizza = Pizza('Margherita', 10)
+        return cls(data['name'], data['price'])
 
 
 class Menu:
@@ -53,8 +68,8 @@ class Menu:
         for pizza in self.pizzas:
             if pizza.name == name:
                 return pizza
-        # TODO: Zmienimy na rzucanie wyjątku zamiast zwracania None
-        return None
+
+        raise PizzaNotFoundError(name)
 
     def list_pizzas(self):
         """Wyświetla wszystkie pizze w menu."""
@@ -70,3 +85,21 @@ class Menu:
 
     def __iter__(self):
         return iter(self.pizzas)
+
+    def to_dict(self):
+        return {
+            'pizzas': [pizza.to_dict() for pizza in self.pizzas]
+            #'pizzas': self.pizzas
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        #cls = Menu
+        #menu = Menu()
+        menu = cls()
+        pizzas = data['pizzas']
+        for pizza in pizzas:
+            menu.add_pizza(Pizza.from_dict(pizza))
+        return menu
+
+

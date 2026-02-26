@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Nowe zamowienie - Pizzeria{% endblock %}
+
+{% block content %}
+<h1>Nowe zamowienie</h1>
+
+{% if errors %}
+<div class="alert alert-danger">
+    <ul class="mb-0">
+        {% for error in errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label for="customer_id" class="form-label">Klient</label>
+        <select class="form-select" id="customer_id" name="customer_id" required>
+            <option value="">-- Wybierz klienta --</option>
+            {% for customer in customers %}
+            <option value="{{ customer.id }}">
+                {{ customer.name }}
+                {% if customer.discount_percent is not None %}
+                    (VIP -{{ customer.discount_percent }}%)
+                {% endif %}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <h4>Pozycje zamowienia</h4>
+    <div id="items-container">
+        <div class="row mb-2 item-row">
+            <div class="col-md-8">
+                <select class="form-select" name="pizza_name">
+                    <option value="">-- Wybierz pizze --</option>
+                    {% for pizza in pizzas %}
+                    <option value="{{ pizza.name }}">{{ pizza.name }} ({{ pizza.price }} zl)</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="number" class="form-control" name="quantity" min="1" value="1" placeholder="Ilosc">
+            </div>
+        </div>
+    </div>
+
+    <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="addItem()">+ Dodaj pozycje</button>
+
+    <div>
+        <button type="submit" class="btn btn-success">Zloz zamowienie</button>
+        <a href="{% url 'order_list' %}" class="btn btn-secondary">Anuluj</a>
+    </div>
+</form>
+
+<script>
+function addItem() {
+    const container = document.getElementById('items-container');
+    const firstRow = container.querySelector('.item-row');
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelector('select').value = '';
+    newRow.querySelector('input').value = '1';
+    container.appendChild(newRow);
+}
+</script>
+{% endblock %}

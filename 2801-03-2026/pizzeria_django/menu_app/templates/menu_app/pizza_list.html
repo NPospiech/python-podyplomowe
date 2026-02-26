@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Menu - Pizzeria{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Menu Pizzerii</h1>
+    <a href="{% url 'pizza_add' %}" class="btn btn-success">Dodaj pizze</a>
+</div>
+
+{% if pizzas %}
+<div class="row">
+    {% for pizza in pizzas %}
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">{{ pizza.name }}</h5>
+                <p class="price">{{ pizza.price }} zl</p>
+                <a href="{% url 'pizza_detail' pizza.name %}" class="btn btn-outline-primary btn-sm">Szczegoly</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="mt-4">
+    <h4>Statystyki</h4>
+    <ul>
+        <li>Liczba pizz: {{ pizzas|length }}</li>
+        {% if cheapest %}<li>Najtansza: {{ cheapest.name }} ({{ cheapest.price }} zl)</li>{% endif %}
+        {% if most_expensive %}<li>Najdrozsza: {{ most_expensive.name }} ({{ most_expensive.price }} zl)</li>{% endif %}
+        <li>Srednia cena: {{ average_price|floatformat:2 }} zl</li>
+    </ul>
+</div>
+{% else %}
+<p class="text-muted">Menu jest puste. <a href="{% url 'pizza_add' %}">Dodaj pierwsza pizze!</a></p>
+{% endif %}
+{% endblock %}
