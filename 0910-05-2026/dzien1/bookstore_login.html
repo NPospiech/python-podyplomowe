@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Ksiegarnia - logowanie</title>
+  <style>
+    body { font-family: sans-serif; max-width: 400px; margin: 40px auto; padding: 20px; }
+    form input { display: block; width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box; }
+    form button { padding: 8px 16px; }
+    .hidden { display: none; }
+    .welcome-message { color: #2a7; padding: 12px; border: 1px solid #2a7; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Ksiegarnia - Zaloguj sie</h1>
+
+  <form id="login-form">
+    <input name="username" id="username" type="text" placeholder="email">
+    <input name="password" id="password" type="password" placeholder="haslo">
+    <button id="login-btn" type="submit">Zaloguj</button>
+  </form>
+
+  <div id="welcome-area" class="hidden">
+    <p class="welcome-message"></p>
+  </div>
+
+  <script>
+    document.getElementById("login-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      var username = document.getElementById("username").value;
+      var msg = document.querySelector(".welcome-message");
+      msg.textContent = "Witaj, " + username + "!";
+      document.getElementById("welcome-area").classList.remove("hidden");
+    });
+  </script>
+</body>
+</html>

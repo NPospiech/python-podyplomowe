@@ -1,0 +1,24 @@
+[
+  {
+    "type": "Customer",
+    "id": 1,
+    "name": "Jan Kowalski",
+    "phone": "123-456-789"
+  },
+  {
+    "type": "VIPCustomer",
+    "id": 2,
+    "name": "Anna Nowak",
+    "phone": "987-654-321",
+    "discount_percent": 15,
+    "loyalty_points": 140
+  },
+  {
+    "type": "VIPCustomer",
+    "id": 3,
+    "name": "Piotr Wiśniewski",
+    "phone": "555-123-456",
+    "discount_percent": 20,
+    "loyalty_points": 120
+  }
+]

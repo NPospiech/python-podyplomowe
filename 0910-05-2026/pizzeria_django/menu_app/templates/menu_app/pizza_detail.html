@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}{{ pizza.name }} - Pizzeria{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'pizza_list' %}">Menu</a></li>
+        <li class="breadcrumb-item active">{{ pizza.name }}</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-body">
+        <h1>{{ pizza.name }}</h1>
+        <p class="price" style="font-size: 2rem;">{{ pizza.price }} zl</p>
+        <hr>
+        <p>Cena z 10% rabatem VIP: <strong>{{ pizza.price|floatformat:2 }} zl &rarr; {% widthratio pizza.price 100 90 %}.00 zl</strong></p>
+    </div>
+</div>
+
+<a href="{% url 'pizza_list' %}" class="btn btn-secondary mt-3">Powrot do menu</a>
+{% endblock %}

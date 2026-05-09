@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Selenium Wait Demo</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
+    button { padding: 8px 16px; font-size: 16px; cursor: pointer; }
+    #search-results { margin-top: 20px; padding: 12px; border: 1px solid #ccc; min-height: 30px; }
+    .book-item { padding: 6px; border-bottom: 1px solid #eee; }
+    .hidden { display: none; }
+    .spinner { color: #888; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Wyszukiwarka ksiazek (demo)</h1>
+
+  <p>
+    <input id="search-input" type="text" placeholder="np. Sienkiewicz">
+    <button id="search-btn">Szukaj</button>
+  </p>
+
+  <div id="spinner" class="spinner hidden">Trwa wyszukiwanie...</div>
+
+  <!-- Kontener jest pusty - wyniki sa wstrzykiwane przez JS dopiero po 3 sekundach. -->
+  <div id="search-results"></div>
+
+  <script>
+    var BOOKS = [
+      "Quo Vadis - Henryk Sienkiewicz",
+      "Krzyzacy - Henryk Sienkiewicz",
+      "Potop - Henryk Sienkiewicz"
+    ];
+
+    document.getElementById("search-btn").addEventListener("click", function() {
+      var spinner = document.getElementById("spinner");
+      var results = document.getElementById("search-results");
+
+      // Wyczysc poprzednie wyniki, pokaz spinner
+      results.innerHTML = "";
+      spinner.classList.remove("hidden");
+
+      // Symulacja "wolnego" backendu - 3 sekundy opoznienia.
+      // Dopiero potem book-itemy pojawiaja sie w DOM (jak prawdziwy AJAX).
+      setTimeout(function() {
+        spinner.classList.add("hidden");
+        BOOKS.forEach(function(title) {
+          var item = document.createElement("div");
+          item.className = "book-item";
+          item.textContent = title;
+          results.appendChild(item);
+        });
+      }, 3000);
+    });
+  </script>
+</body>
+</html>

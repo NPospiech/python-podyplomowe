@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Klienci - Pizzeria{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Klienci</h1>
+    <a href="{% url 'customer_add' %}" class="btn btn-success">Dodaj klienta</a>
+</div>
+
+{% if customers %}
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Imie</th>
+            <th>Telefon</th>
+            <th>Typ</th>
+            <th>Rabat</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for customer in customers %}
+        <tr>
+            <td>{{ customer.id }}</td>
+            <td>{{ customer.name }}</td>
+            <td>{{ customer.phone }}</td>
+            <td>
+                {% if customer.discount_percent is not None %}
+                    <span class="vip-badge">VIP</span>
+                {% else %}
+                    Zwykly
+                {% endif %}
+            </td>
+            <td>
+                {% if customer.discount_percent is not None %}
+                    {{ customer.discount_percent }}%
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p>Razem: {{ total }} klientow</p>
+{% else %}
+<p class="text-muted">Brak klientow. <a href="{% url 'customer_add' %}">Dodaj pierwszego!</a></p>
+{% endif %}
+{% endblock %}
